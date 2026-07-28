@@ -1,50 +1,61 @@
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..800;1,400..600&family=Outfit:wght@300..700&display=swap');
 
 :root {
-  /* Navy palette */
+  /* Navy (royal blue) — brand primary, from logo #102D69 */
   --navy-950: #060D1F;
   --navy-900: #0A1730;
-  --navy-800: #122340;
-  --navy-700: #1A3050;
-  --navy-600: #234060;
-  
-  /* Gold accent */
-  --gold-500: #C6A247;
-  --gold-400: #D4B55A;
-  --gold-300: #E2C86D;
-  
-  /* Ink (text) */
-  --ink-050: #F8FAFC;
-  --ink-100: #E2E8F0;
-  --ink-200: #CBD5E1;
-  --ink-300: #94A3B8;
-  --ink-400: #64748B;
-  --ink-500: #475569;
-  
-  /* Blue accent */
-  --blue-200: #93C5FD;
-  --blue-400: #60A5FA;
-  
-  /* Semantic */
+  --navy-800: #0D2148;
+  --navy-700: #102D69;
+  --navy-600: #1A3D85;
+  --navy-500: #2A50A3;
+
+  /* Gold — crown accent #D4AF37 */
+  --gold-600: #B8962E;
+  --gold-500: #D4AF37;
+  --gold-400: #E1C25C;
+  --gold-300: #EDD78F;
+
+  /* Light blue — secondary accent */
+  --blue-300: #A9C7F2;
+  --blue-200: #C9DCF8;
+
+  /* Ink — text on dark */
+  --ink-050: #F4F7FD;
+  --ink-100: #EAF0FA;
+  --ink-300: #B6C4DC;
+  --ink-500: #7E90B0;
+
+  /* Semantic surfaces & text */
+  --surface-page: var(--navy-950);
+  --surface-card: #0C1B3A;
+  --surface-raised: var(--navy-700);
+  --surface-gold: var(--gold-500);
   --text-heading: var(--ink-050);
-  --text-body: var(--ink-200);
-  --text-muted: var(--ink-400);
-  --surface-bg: var(--navy-950);
-  --surface-card: var(--navy-900);
-  --surface-elevated: var(--navy-800);
-  --border-subtle: rgba(255,255,255,0.06);
-  --border-strong: rgba(255,255,255,0.12);
-  
-  /* Effects */
-  --shadow-card: 0 4px 24px rgba(0,0,0,0.25);
+  --text-body: var(--ink-300);
+  --text-muted: var(--ink-500);
+  --text-on-gold: var(--navy-900);
+  --text-accent: var(--gold-500);
+  --border-subtle: rgba(169,199,242,.14);
+  --border-strong: rgba(169,199,242,.28);
+  --border-gold: rgba(212,175,55,.45);
+
+  /* Status */
+  --status-live: var(--gold-500);
+  --status-building: var(--blue-300);
+  --status-soon: var(--ink-500);
+  --success: #5BBB8B;
+  --error: #E2606B;
+
+  /* Typography */
+  --font-display: "Playfair Display", Georgia, serif;
+  --font-sans: "Outfit", "Avenir Next", "Segoe UI", sans-serif;
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 16px;
-  --radius-pill: 9999px;
-  
-  /* Typography */
-  --font-display: 'Playfair Display', Georgia, serif;
-  --font-sans: 'Outfit', system-ui, sans-serif;
+  --radius-pill: 999px;
+  --shadow-card: 0 10px 32px rgba(3,8,20,.45);
+  --shadow-raised: 0 18px 48px rgba(3,8,20,.6);
+  --ease-out: cubic-bezier(.22,1,.36,1);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -52,7 +63,7 @@
 html, body {
   height: 100%;
   font-family: var(--font-sans);
-  background: var(--surface-bg);
+  background: var(--surface-page);
   color: var(--text-body);
   -webkit-font-smoothing: antialiased;
 }
@@ -62,11 +73,25 @@ html, body {
   color: var(--navy-950);
 }
 
-a { color: inherit; text-decoration: none; }
+a { color: var(--gold-400); text-decoration: none; }
+a:hover { color: var(--gold-300); }
 button { font-family: inherit; }
 
 /* Scrollbar */
-::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--navy-700); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: var(--navy-600); }
+::-webkit-scrollbar-thumb { background: rgba(169,199,242,.16); border-radius: 8px; }
+
+/* Animations */
+@keyframes mnfade {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes mnblink {
+  0%, 80%, 100% { opacity: .22; }
+  40% { opacity: 1; }
+}
+@keyframes mnpop {
+  from { opacity: 0; transform: translateY(12px) scale(.985); }
+  to { opacity: 1; transform: none; }
+}

@@ -1,29 +1,13 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import {
-  MessageSquare,
-  FolderKanban,
-  Bot,
-  Wrench,
-  Library,
-  Settings,
-  ChevronRight,
-  Send,
-  Sparkles,
-  Plus,
-  Clock,
-  CheckCircle2,
-  AlertCircle,
-  Loader2,
-  X,
-} from 'lucide-react';
+import { X } from 'lucide-react';
 
 // ─────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────
 
-type View = 'chat' | 'projects' | 'agents' | 'tools' | 'library';
+type View = 'chat' | 'products' | 'agents' | 'skills' | 'library';
 
 interface Message {
   id: string;
@@ -32,191 +16,154 @@ interface Message {
   timestamp: Date;
 }
 
-interface Plan {
-  id: string;
-  objective: string;
-  steps: PlanStep[];
-  status: 'draft' | 'approved' | 'running' | 'complete' | 'failed';
-}
-
-interface PlanStep {
-  id: string;
-  title: string;
-  description: string;
-  risk: 'safe' | 'consequential';
-  status: 'pending' | 'running' | 'complete' | 'failed' | 'awaiting_approval';
-}
-
 interface Project {
   id: string;
   name: string;
   description: string;
   status: 'active' | 'paused' | 'complete';
   lastActivity: Date;
-  plans: Plan[];
 }
 
-interface Agent {
-  id: string;
+interface CardItem {
   name: string;
-  description: string;
-  icon: string;
-  capabilities: string[];
-  status: 'available' | 'busy';
-}
-
-interface Tool {
-  id: string;
-  name: string;
-  description: string;
-  category: string;
-  riskLevel: 'safe' | 'consequential';
-  enabled: boolean;
+  tagline?: string;
+  price: number;
+  status?: 'live' | 'building' | 'soon';
+  about?: string;
+  by?: string;
+  cat?: string;
+  desc?: string;
 }
 
 // ─────────────────────────────────────────────────────────────
-// Mock Data
+// Data — Products, Agents, Skills
 // ─────────────────────────────────────────────────────────────
 
-const MOCK_AGENTS: Agent[] = [
-  {
-    id: 'researcher',
-    name: 'Researcher',
-    description: 'Finds information, compares options, synthesizes knowledge',
-    icon: '🔍',
-    capabilities: ['web search', 'document analysis', 'comparison tables'],
-    status: 'available',
-  },
-  {
-    id: 'planner',
-    name: 'Planner',
-    description: 'Breaks goals into actionable steps with clear milestones',
-    icon: '📋',
-    capabilities: ['task breakdown', 'timeline creation', 'dependency mapping'],
-    status: 'available',
-  },
-  {
-    id: 'writer',
-    name: 'Writer',
-    description: 'Drafts emails, documents, messages in your voice',
-    icon: '✍️',
-    capabilities: ['email drafting', 'document writing', 'editing'],
-    status: 'available',
-  },
-  {
-    id: 'scheduler',
-    name: 'Scheduler',
-    description: 'Manages calendar, books appointments, sends reminders',
-    icon: '📅',
-    capabilities: ['calendar management', 'booking', 'reminders'],
-    status: 'available',
-  },
-  {
-    id: 'organizer',
-    name: 'Organizer',
-    description: 'Sorts files, creates folders, maintains structure',
-    icon: '📁',
-    capabilities: ['file organization', 'tagging', 'archiving'],
-    status: 'busy',
-  },
+const PRODUCTS: (CardItem & { domain: string })[] = [
+  { name: 'Artispreneur', tagline: 'The home base where artists build a real business — bookings, brand, and income in one place.', domain: 'artispreneur.com', status: 'live', price: 0 },
+  { name: 'Artispreneur Academy', tagline: 'Courses that turn creative talent into a living you can count on.', domain: 'academy.artispreneur.com', status: 'live', price: 0 },
+  { name: 'Artispreneur Contracts', tagline: 'Fair, plain-English contracts for creators — drafted in minutes, not lawyer hours.', domain: 'contracts.artispreneur.com', status: 'live', price: 0 },
+  { name: 'Rostr', tagline: 'The agent platform that powers everything Monarch builds. Home of Hermes.', domain: 'rostragent.com', status: 'live', price: 0 },
+  { name: 'Replai', tagline: 'Answers every message in your own voice, so nothing ever slips through.', domain: 'replaiall.com', status: 'live', price: 0 },
+  { name: 'Credit Fixer', tagline: 'Finds the errors on your credit report and disputes them for you.', domain: 'fcragent.com', status: 'live', price: 0 },
+  { name: 'Lola', tagline: 'Your personal coach — a plan for your body that adjusts as you go.', domain: 'trainlola.com', status: 'live', price: 0 },
+  { name: 'Huddle CoWork', tagline: 'A calm place for remote teams to gather and get real work done.', domain: 'huddleco.work', status: 'live', price: 0 },
+  { name: 'GencyAI', tagline: 'Runs your agency\'s day-to-day — clients, tasks, and invoices — so you can do the work.', domain: 'gencyai.com', status: 'building', price: 0 },
+  { name: 'Lets Vibe AI', tagline: 'Describe the vibe; watch it become something real.', domain: 'letsvibeai.com', status: 'building', price: 0 },
 ];
 
-const MOCK_TOOLS: Tool[] = [
-  { id: 'web-search', name: 'Web Search', description: 'Search the internet for information', category: 'Research', riskLevel: 'safe', enabled: true },
-  { id: 'email-read', name: 'Read Email', description: 'Access and read your emails', category: 'Communication', riskLevel: 'safe', enabled: true },
-  { id: 'email-send', name: 'Send Email', description: 'Send emails on your behalf', category: 'Communication', riskLevel: 'consequential', enabled: true },
-  { id: 'calendar-read', name: 'View Calendar', description: 'See your schedule', category: 'Scheduling', riskLevel: 'safe', enabled: true },
-  { id: 'calendar-write', name: 'Book Meetings', description: 'Schedule appointments', category: 'Scheduling', riskLevel: 'consequential', enabled: false },
-  { id: 'files-read', name: 'Read Files', description: 'Access your documents', category: 'Files', riskLevel: 'safe', enabled: true },
-  { id: 'files-write', name: 'Create Files', description: 'Create and edit documents', category: 'Files', riskLevel: 'consequential', enabled: true },
-  { id: 'purchase', name: 'Make Purchases', description: 'Buy items online', category: 'Commerce', riskLevel: 'consequential', enabled: false },
+const AGENTS: (CardItem & { by: string })[] = [
+  { name: 'Artispreneur', by: 'Monarch', tagline: 'Turns artists into entrepreneurs — bookings, brand, and business, handled.', price: 0, status: 'live', about: 'Built for working creatives. It keeps your calendar, your brand, and your money moving — drafting outreach, tracking gigs, and lining up the next opportunity, all waiting on your approval.' },
+  { name: 'ArtistEPKs', by: 'ArtistEPKs', tagline: 'A professional press kit for your music, in minutes.', price: 19, status: 'live', about: 'Give it your links and a few facts; it writes and lays out a press kit that promoters and labels actually open — bio, photos, tracks, and stats, ready to send.' },
+  { name: 'Credit Fixer', by: 'Monarch', tagline: 'Disputes credit-report errors and tracks every response.', price: 29, status: 'live', about: 'It reads your reports, flags what looks wrong, and drafts the disputes — then follows each one until it\'s resolved. You approve every letter before it goes out.' },
+  { name: 'Replai', by: 'Monarch', tagline: 'Clears your inbox in your voice — drafts ready to approve.', price: 15, status: 'live', about: 'It reads what came in, understands what matters, and writes replies that sound like you. Nothing sends until you say so.' },
+  { name: 'PRD Builder', by: 'Rostr', tagline: 'Turns a rough idea into a build-ready product spec.', price: 12, status: 'live', about: 'Describe what you want to make. It asks the right questions and returns a clear, organized spec your team can actually build from.' },
+  { name: 'GencyAI', by: 'Monarch', tagline: 'Runs your agency: clients, tasks, and invoices.', price: 39, status: 'building', about: 'The operating system for a small agency — it keeps projects on track, drafts client updates, and gets invoices out the door. Arriving soon.' },
+  { name: 'Diagram Builder', by: 'Rostr', tagline: 'Describe a system; get a clean diagram back.', price: 0, status: 'live', about: 'Explain how something connects and it draws it for you — flows, architectures, org charts — clean enough to drop into a deck.' },
 ];
 
-const MOCK_PROJECTS: Project[] = [
-  {
-    id: 'p1',
-    name: 'Chicago Move',
-    description: 'Planning relocation to Chicago in March',
-    status: 'active',
-    lastActivity: new Date(Date.now() - 2 * 60 * 60 * 1000),
-    plans: [
-      {
-        id: 'plan1',
-        objective: 'Research neighborhoods in Chicago',
-        status: 'complete',
-        steps: [
-          { id: 's1', title: 'List key criteria (commute, safety, budget)', description: '', risk: 'safe', status: 'complete' },
-          { id: 's2', title: 'Research top 5 neighborhoods', description: '', risk: 'safe', status: 'complete' },
-          { id: 's3', title: 'Create comparison table', description: '', risk: 'safe', status: 'complete' },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'p2',
-    name: 'Wedding Budget',
-    description: 'Track expenses for Sarah\'s wedding',
-    status: 'active',
-    lastActivity: new Date(Date.now() - 24 * 60 * 60 * 1000),
-    plans: [],
-  },
+const SKILLS: (CardItem & { by: string; cat: string; desc: string })[] = [
+  { name: 'PAL Compiler', by: 'Rostr', desc: 'Compiles a vague request into a precise, do-able plan.', cat: 'Build', price: 9, about: 'The Prompt Abstraction Layer: it takes a fuzzy ask and turns it into an exact plan of what to do, in what order — so your agent never guesses.' },
+  { name: 'NPAO Router', by: 'Rostr', desc: 'Picks the right approach for each task, automatically.', cat: 'Build', price: 9, about: 'Scores every task on what it needs and routes it to the best approach — fast when speed matters, careful when quality does.' },
+  { name: 'JTBD Builder', by: 'Rostr', desc: 'Find the real job your customers hire you for.', cat: 'Work', price: 0, about: 'Walks you through the Jobs-to-be-Done method and hands back a crisp statement of what people actually want from you.' },
+  { name: 'Instruction Architect', by: 'Rostr', desc: 'Writes crisp instructions your agent follows exactly.', cat: 'Build', price: 7, about: 'Turns your intentions into clear, unambiguous instructions — the difference between an agent that almost gets it and one that nails it.' },
+  { name: 'PRD Builder', by: 'Rostr', desc: 'A rough idea becomes a build-ready spec.', cat: 'Work', price: 9, about: 'Interviews you about your idea and returns an organized product spec, ready to hand to whoever\'s building it.' },
+  { name: 'Diagram Builder', by: 'Rostr', desc: 'Describe a system; get a clean diagram.', cat: 'Build', price: 0, about: 'Say how the pieces connect and it draws the picture — flows, maps, and architectures you can drop straight into a doc.' },
+  { name: 'Trip Planner', by: 'Monarch', desc: 'Flights, stays, and a day-by-day plan — you just approve.', cat: 'Home & Family', price: 0, about: 'Tell it where and when. It finds options, builds a day-by-day itinerary, and lines up the bookings for your okay.' },
+  { name: 'Bill Negotiator', by: 'Monarch', desc: 'Finds overcharges and drafts the calls and emails to fix them.', cat: 'Money', price: 5, about: 'Reads your bills, spots what you\'re overpaying, and writes the exact scripts and emails to get it lowered.' },
+  { name: 'Resume Builder', by: 'Monarch', desc: 'Turns your work history into a resume that gets callbacks.', cat: 'Work', price: 0, about: 'Give it your history in plain words; it shapes a clean, confident resume tuned to the jobs you actually want.' },
+  { name: 'Meal Prep', by: 'Monarch', desc: 'A week of meals, a grocery list, and the order ready to place.', cat: 'Home & Family', price: 0, about: 'Pick a vibe and any limits. It plans the week, builds the grocery list, and gets the order ready for your approval.' },
+  { name: 'Press Kit Maker', by: 'ArtistEPKs', desc: 'A professional press kit for your music, in minutes.', cat: 'Create', price: 9, about: 'The ArtistEPKs skill, unbundled — a polished press kit from your links and a few facts, ready to send.' },
+  { name: 'Small Biz Starter', by: 'Artispreneur', desc: 'From idea to open-for-business, one approval at a time.', cat: 'Work', price: 9, about: 'Walks a new business from idea to open — name, basics, first customers — each step waiting on your say-so.' },
+  { name: 'Garage Sale Lister', by: 'Community', desc: 'Snap photos; it writes listings and posts them everywhere.', cat: 'Money', price: 0, about: 'Photograph your stuff. It writes the listings, prices them, and posts to the right places — you approve before anything goes live.' },
+  { name: 'Photo Organizer', by: 'Community', desc: 'Sorts decades of family photos into albums you can share.', cat: 'Home & Family', price: 0, about: 'Point it at the pile. It sorts by people, places, and moments into albums the whole family can enjoy.' },
 ];
+
+const SKILL_CATEGORIES = ['All', 'Home & Family', 'Money', 'Work', 'Build', 'Create'];
 
 const QUICK_PROMPTS = [
-  'Help me plan my move to Chicago',
+  "Plan my daughter's wedding budget",
   'Organize my job search',
-  'Create a budget for the wedding',
-  'Research vacation options for spring',
+  'Sell my old furniture online',
+  'Plan a trip to see the grandkids',
 ];
 
 // ─────────────────────────────────────────────────────────────
-// API Configuration
+// Helpers
+// ─────────────────────────────────────────────────────────────
+
+function statusMap(status: string | undefined) {
+  const M: Record<string, { label: string; dot: string; color: string; border: string }> = {
+    live: { label: 'Live', dot: 'var(--status-live)', color: 'var(--gold-400)', border: 'var(--border-gold)' },
+    building: { label: 'Building', dot: 'var(--status-building)', color: 'var(--blue-300)', border: 'var(--border-strong)' },
+    soon: { label: 'Coming soon', dot: 'var(--status-soon)', color: 'var(--ink-500)', border: 'var(--border-subtle)' },
+  };
+  return M[status || ''] || M.live;
+}
+
+function loadLib(): { name: string; kind: string; price: number; tagline: string }[] {
+  if (typeof window === 'undefined') return [];
+  try { return JSON.parse(localStorage.getItem('monarch_library') || '[]'); } catch { return []; }
+}
+
+function saveLib(lib: unknown) {
+  try { localStorage.setItem('monarch_library', JSON.stringify(lib)); } catch {}
+}
+
+// ─────────────────────────────────────────────────────────────
+// API
 // ─────────────────────────────────────────────────────────────
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
 // ─────────────────────────────────────────────────────────────
-// Components
+// Hermes system prompt (from Claude Design)
+// ─────────────────────────────────────────────────────────────
+
+const HERMES_PROMPT = `You are Hermes, the Monarch base agent — a warm, capable helper for everyday people. Monarch's promise: the person is always in control and nothing happens until they approve it. Speak plainly and kindly, like a trusted friend who happens to be brilliant. Never be technical and never use jargon (avoid the words AI, LLM, model, workflow, automation, agentic). Be regal but warm: calm, decisive, encouraging — you smile through your words. Keep replies short and easy to read. When someone asks you to get something done, reply with one friendly sentence, then a short numbered plan (2 to 5 steps) of how you'd handle it, and end by asking them to approve it or change something. For questions or chit-chat, just answer warmly and helpfully in a few sentences. Never claim you've already done something in the real world — you propose, they approve. Write in plain text only: no markdown, no asterisks, no bold, no bullet characters. For a plan, use simple numbered lines like "1. Step one". Keep a blank line between the numbered steps.`;
+
+// ─────────────────────────────────────────────────────────────
+// Logo
 // ─────────────────────────────────────────────────────────────
 
 function Logo({ size = 34 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 100 100" fill="none">
-      {/* Crown/Monarch symbol */}
-      <path
-        d="M50 15L65 35L80 25L75 55H25L20 25L35 35L50 15Z"
-        fill="var(--gold-500)"
-        stroke="var(--gold-400)"
-        strokeWidth="2"
-      />
-      <path
-        d="M25 55H75V65C75 70 70 75 65 75H35C30 75 25 70 25 65V55Z"
-        fill="var(--gold-500)"
-      />
-      {/* Jewels */}
-      <circle cx="35" cy="42" r="4" fill="var(--navy-900)" />
-      <circle cx="50" cy="38" r="5" fill="var(--navy-900)" />
-      <circle cx="65" cy="42" r="4" fill="var(--navy-900)" />
-    </svg>
-  );
+  return <img src="/logo-mark-light.png" alt="Monarch" style={{ height: size }} />;
 }
+
+// ─────────────────────────────────────────────────────────────
+// Sidebar
+// ─────────────────────────────────────────────────────────────
 
 function Sidebar({
   activeView,
   onViewChange,
-  projects,
+  libraryCount,
 }: {
   activeView: View;
   onViewChange: (v: View) => void;
-  projects: Project[];
+  libraryCount: number;
 }) {
-  const navItems: { id: View; label: string; icon: React.ReactNode }[] = [
-    { id: 'chat', label: 'Chat', icon: <MessageSquare size={18} /> },
-    { id: 'projects', label: 'Projects', icon: <FolderKanban size={18} /> },
-    { id: 'agents', label: 'Agents', icon: <Bot size={18} /> },
-    { id: 'tools', label: 'Tools', icon: <Wrench size={18} /> },
-    { id: 'library', label: 'Library', icon: <Library size={18} /> },
+  const navItems: { id: View; label: string }[] = [
+    { id: 'chat', label: 'Chat' },
+    { id: 'products', label: 'Products' },
+    { id: 'agents', label: 'Agents' },
+    { id: 'skills', label: 'Skills' },
+    { id: 'library', label: 'Library' },
   ];
+
+  const navStyle = (id: View) => ({
+    display: 'flex' as const,
+    alignItems: 'center' as const,
+    gap: 10,
+    padding: '10px 13px',
+    borderRadius: 'var(--radius-md)',
+    fontSize: 15,
+    cursor: 'pointer',
+    color: activeView === id ? 'var(--ink-050)' : 'var(--ink-300)',
+    background: activeView === id ? 'var(--navy-800)' : 'transparent',
+    fontWeight: activeView === id ? 600 : 500,
+    transition: 'background 150ms, color 150ms',
+  });
 
   return (
     <aside
@@ -236,166 +183,66 @@ function Sidebar({
     >
       {/* Logo */}
       <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 11,
-          padding: '4px 8px 20px',
-          cursor: 'pointer',
-        }}
+        style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '4px 8px 20px', cursor: 'pointer' }}
         onClick={() => onViewChange('chat')}
       >
         <Logo />
-        <span
-          style={{
-            fontSize: 15,
-            letterSpacing: '.30em',
-            color: 'var(--ink-050)',
-            fontWeight: 500,
-          }}
-        >
+        <span style={{ fontSize: 15, letterSpacing: '.30em', color: 'var(--ink-050)', fontWeight: 500 }}>
           MONARCH
         </span>
       </div>
 
-      {/* Navigation */}
-      <div
-        style={{
-          padding: '0 10px 10px',
-          fontSize: 11,
-          letterSpacing: '.22em',
-          color: 'var(--ink-500)',
-          textTransform: 'uppercase',
-        }}
-      >
+      {/* Menu */}
+      <div style={{ padding: '0 10px 10px', fontSize: 11, letterSpacing: '.22em', color: 'var(--ink-500)', textTransform: 'uppercase' }}>
         Menu
       </div>
-      <nav style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+
+      <nav style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 22 }}>
         {navItems.map((item) => (
-          <a
-            key={item.id}
-            onClick={() => onViewChange(item.id)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              padding: '10px 13px',
-              borderRadius: 'var(--radius-md)',
-              fontSize: 15,
-              cursor: 'pointer',
-              color: activeView === item.id ? 'var(--ink-050)' : 'var(--ink-300)',
-              background: activeView === item.id ? 'var(--navy-800)' : 'transparent',
-              fontWeight: activeView === item.id ? 600 : 500,
-              transition: 'all 0.15s',
-            }}
-          >
-            {item.icon}
-            {item.label}
-          </a>
+          <div key={item.id} onClick={() => onViewChange(item.id)} style={navStyle(item.id)}>
+            <span>{item.label}</span>
+            {item.id === 'library' && libraryCount > 0 && (
+              <span style={{ marginLeft: 'auto', background: 'var(--navy-700)', color: 'var(--gold-400)', fontSize: 12, fontWeight: 600, borderRadius: 999, padding: '1px 9px' }}>
+                {libraryCount}
+              </span>
+            )}
+          </div>
         ))}
       </nav>
 
-      {/* Recent Projects */}
-      <div
-        style={{
-          marginTop: 22,
-          paddingTop: 18,
-          borderTop: '1px solid var(--border-subtle)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 2,
-        }}
-      >
-        <div
-          style={{
-            padding: '0 10px 8px',
-            fontSize: 11,
-            letterSpacing: '.22em',
-            color: 'var(--ink-500)',
-            textTransform: 'uppercase',
-          }}
-        >
+      {/* Recent */}
+      <div style={{ paddingTop: 18, borderTop: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <div style={{ padding: '0 10px 8px', fontSize: 11, letterSpacing: '.22em', color: 'var(--ink-500)', textTransform: 'uppercase' }}>
           Recent
         </div>
-        {projects.slice(0, 3).map((p) => (
-          <a
-            key={p.id}
-            onClick={() => onViewChange('projects')}
-            style={{
-              padding: '8px 10px',
-              fontSize: 14,
-              color: 'var(--ink-300)',
-              borderRadius: 'var(--radius-md)',
-              cursor: 'pointer',
-            }}
+        {['Wedding budget plan', 'Trip to see the grandkids'].map((label) => (
+          <div
+            key={label}
+            onClick={() => onViewChange('chat')}
+            style={{ padding: '8px 10px', fontSize: 14, color: 'var(--ink-300)', borderRadius: 'var(--radius-md)', cursor: 'pointer' }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--navy-800)'; e.currentTarget.style.color = 'var(--ink-100)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--ink-300)'; }}
           >
-            {p.name}
-          </a>
+            {label}
+          </div>
         ))}
       </div>
 
-      {/* Pro Upgrade CTA */}
+      {/* Bottom: Upgrade + Profile */}
       <div style={{ marginTop: 'auto', paddingTop: 16 }}>
-        <div
-          style={{
-            background: 'var(--navy-700)',
-            borderRadius: 'var(--radius-lg)',
-            padding: 16,
-            marginBottom: 14,
-          }}
-        >
-          <div
-            style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: 17,
-              color: 'var(--ink-050)',
-            }}
-          >
-            Monarch Pro
-          </div>
-          <p
-            style={{
-              margin: '5px 0 12px',
-              fontSize: 13,
-              lineHeight: 1.5,
-              color: 'var(--blue-200)',
-            }}
-          >
-            Every agent, unlimited help, all your tools.
-          </p>
+        <div style={{ background: 'var(--navy-700)', borderRadius: 'var(--radius-lg)', padding: 16, marginBottom: 14 }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: 17, color: 'var(--ink-050)' }}>Monarch Pro</div>
+          <p style={{ margin: '5px 0 12px', fontSize: 13, lineHeight: 1.5, color: 'var(--blue-200)' }}>Every agent, unlimited help, all your skills.</p>
           <button
-            style={{
-              width: '100%',
-              background: 'var(--gold-500)',
-              color: 'var(--navy-900)',
-              border: 'none',
-              borderRadius: 'var(--radius-md)',
-              padding: '9px 0',
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
+            onClick={() => onViewChange('agents')}
+            style={{ width: '100%', background: 'var(--gold-500)', color: 'var(--navy-900)', border: 'none', borderRadius: 'var(--radius-md)', padding: '9px 0', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
           >
             Upgrade
           </button>
         </div>
 
-        {/* User */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '2px 6px' }}>
-          <span
-            style={{
-              width: 34,
-              height: 34,
-              borderRadius: '50%',
-              background: 'var(--navy-700)',
-              color: 'var(--gold-400)',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 600,
-              fontSize: 14,
-            }}
-          >
+          <span style={{ width: 34, height: 34, borderRadius: '50%', background: 'var(--navy-700)', color: 'var(--gold-400)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: 14 }}>
             P
           </span>
           <div style={{ lineHeight: 1.2 }}>
@@ -408,186 +255,104 @@ function Sidebar({
   );
 }
 
+// ─────────────────────────────────────────────────────────────
+// Chat View
+// ─────────────────────────────────────────────────────────────
+
 function ChatView({
   messages,
   onSend,
   isLoading,
-  currentPlan,
-  onApprovePlan,
-  onApproveStep,
 }: {
   messages: Message[];
   onSend: (text: string) => void;
   isLoading: boolean;
-  currentPlan: Plan | null;
-  onApprovePlan: () => void;
-  onApproveStep: (stepId: string) => void;
 }) {
-  const [input, setInput] = useState('');
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const prevMsgs = useRef(0);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messages.length !== prevMsgs.current && scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+    prevMsgs.current = messages.length;
   }, [messages]);
 
-  const handleSubmit = () => {
-    if (!input.trim() || isLoading) return;
-    onSend(input.trim());
-    setInput('');
-    if (textareaRef.current) textareaRef.current.style.height = 'auto';
+  const send = () => {
+    const text = inputRef.current?.value?.trim();
+    if (!text || isLoading) return;
+    if (inputRef.current) inputRef.current.value = '';
+    onSend(text);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const onKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSubmit();
+      send();
     }
   };
 
-  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setInput(e.target.value);
-    e.target.style.height = 'auto';
-    e.target.style.height = Math.min(e.target.scrollHeight, 150) + 'px';
-  };
+  const isEmpty = messages.length === 0;
 
-  // Empty state
-  if (messages.length === 0 && !currentPlan) {
+  if (isEmpty) {
     return (
-      <div
-        style={{
-          minHeight: '100vh',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '56px 32px',
-        }}
-      >
-        <Logo size={78} />
-        <div
-          style={{
-            fontFamily: 'var(--font-display)',
-            fontSize: 15,
-            letterSpacing: '.06em',
-            color: 'var(--gold-400)',
-            marginTop: 22,
-          }}
-        >
+      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '56px 32px' }}>
+        <img src="/logo-mark-light.png" alt="" style={{ height: 78, opacity: .96 }} />
+        <div style={{ fontFamily: 'var(--font-display)', fontSize: 15, letterSpacing: '.06em', color: 'var(--gold-400)', marginTop: 22 }}>
           Good to see you, Pat.
         </div>
-        <h1
-          style={{
-            fontFamily: 'var(--font-display)',
-            fontWeight: 500,
-            fontSize: 40,
-            lineHeight: 1.1,
-            color: 'var(--text-heading)',
-            margin: '8px 0 10px',
-            textAlign: 'center',
-            maxWidth: 620,
-          }}
-        >
-          What can I help you with today?
+        <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 500, fontSize: 'clamp(28px, 5vw, 40px)', lineHeight: 1.1, color: 'var(--text-heading)', margin: '8px 0 10px', textAlign: 'center', maxWidth: 620 }}>
+          What can Hermes do for you today?
         </h1>
-        <p
-          style={{
-            fontSize: 16,
-            color: 'var(--ink-500)',
-            margin: '0 0 30px',
-            textAlign: 'center',
-            maxWidth: 520,
-          }}
-        >
-          Describe what you need done. I'll make a plan — and nothing happens until you approve it.
+        <p style={{ fontSize: 16, color: 'var(--ink-500)', margin: '0 0 30px', textAlign: 'center', maxWidth: 520 }}>
+          Say it in your own words. Hermes makes a plan — and nothing happens until you approve it.
         </p>
 
         {/* Input */}
-        <div
-          style={{
-            width: '100%',
-            maxWidth: 680,
-            display: 'flex',
-            gap: 10,
-            alignItems: 'flex-end',
-            background: 'var(--surface-card)',
-            border: '1px solid var(--border-strong)',
-            borderRadius: 'var(--radius-lg)',
-            padding: 12,
-            boxShadow: 'var(--shadow-card)',
-          }}
-        >
+        <div style={{
+          width: '100%', maxWidth: 680, display: 'flex', gap: 10, alignItems: 'flex-end',
+          background: 'var(--surface-card)', border: '1px solid var(--border-strong)',
+          borderRadius: 'var(--radius-lg)', padding: 12, boxShadow: 'var(--shadow-card)',
+        }}>
           <textarea
-            ref={textareaRef}
+            ref={inputRef}
             rows={1}
             placeholder="What do you need done?"
-            value={input}
-            onChange={handleTextareaChange}
-            onKeyDown={handleKeyDown}
+            onKeyDown={onKey}
             style={{
-              flex: 1,
-              background: 'transparent',
-              border: 'none',
-              outline: 'none',
-              resize: 'none',
-              color: 'var(--ink-050)',
-              fontFamily: 'var(--font-sans)',
-              fontSize: 16,
-              lineHeight: 1.5,
-              padding: '9px 10px',
-              maxHeight: 150,
+              flex: 1, background: 'transparent', border: 'none', outline: 'none', resize: 'none',
+              color: 'var(--ink-050)', fontFamily: 'var(--font-sans)', fontSize: 16, lineHeight: 1.5,
+              padding: '9px 10px', maxHeight: 150,
             }}
           />
           <button
-            onClick={handleSubmit}
-            disabled={!input.trim() || isLoading}
+            onClick={send}
             style={{
-              background: input.trim() ? 'var(--gold-500)' : 'var(--navy-700)',
-              color: input.trim() ? 'var(--navy-900)' : 'var(--ink-500)',
-              border: 'none',
-              borderRadius: 'var(--radius-md)',
-              padding: '12px 24px',
-              fontSize: 15,
-              fontWeight: 600,
-              cursor: input.trim() ? 'pointer' : 'default',
-              flexShrink: 0,
-              transition: 'all 0.15s',
+              background: 'var(--gold-500)', color: 'var(--navy-900)', border: 'none',
+              borderRadius: 'var(--radius-md)', padding: '12px 24px', fontSize: 15,
+              fontWeight: 600, cursor: 'pointer', flexShrink: 0,
             }}
           >
-            {isLoading ? <Loader2 size={18} className="animate-spin" /> : 'Send'}
+            Send
           </button>
         </div>
 
         {/* Quick prompts */}
-        <div
-          style={{
-            display: 'flex',
-            gap: 10,
-            flexWrap: 'wrap',
-            justifyContent: 'center',
-            marginTop: 20,
-            maxWidth: 680,
-          }}
-        >
-          {QUICK_PROMPTS.map((prompt) => (
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center', marginTop: 20, maxWidth: 680 }}>
+          {QUICK_PROMPTS.map((label) => (
             <button
-              key={prompt}
-              onClick={() => {
-                setInput(prompt);
-                textareaRef.current?.focus();
-              }}
+              key={label}
+              onClick={() => onSend(label)}
               style={{
-                background: 'transparent',
-                border: '1px solid var(--border-subtle)',
-                color: 'var(--ink-300)',
-                borderRadius: 'var(--radius-pill)',
-                padding: '9px 17px',
-                fontSize: 14,
-                cursor: 'pointer',
-                transition: 'all 0.15s',
+                background: 'transparent', border: '1px solid var(--border-subtle)',
+                color: 'var(--ink-300)', borderRadius: 'var(--radius-pill)',
+                padding: '9px 17px', fontSize: 14, cursor: 'pointer',
               }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--border-strong)'; e.currentTarget.style.color = 'var(--ink-100)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; e.currentTarget.style.color = 'var(--ink-300)'; }}
             >
-              {prompt}
+              {label}
             </button>
           ))}
         </div>
@@ -595,593 +360,440 @@ function ChatView({
     );
   }
 
-  // Chat with messages
+  // Active chat
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+    <div ref={scrollRef} style={{ height: '100vh', overflowY: 'auto' }}>
       {/* Messages */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '24px 32px' }}>
-        <div style={{ maxWidth: 800, margin: '0 auto' }}>
-          {messages.map((msg) => (
+      <div style={{ maxWidth: 820, margin: '0 auto', padding: '36px 32px 8px', display: 'flex', flexDirection: 'column', gap: 22, minHeight: 'calc(100vh - 104px)' }}>
+        {messages.map((m) =>
+          m.role === 'user' ? (
             <div
-              key={msg.id}
+              key={m.id}
               style={{
-                marginBottom: 24,
-                display: 'flex',
-                gap: 12,
-                justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                alignSelf: 'flex-end', background: 'var(--navy-700)', color: 'var(--ink-050)',
+                borderRadius: '16px 16px 4px 16px', padding: '13px 18px', fontSize: 15,
+                lineHeight: 1.55, maxWidth: '80%', animation: 'mnfade .3s var(--ease-out)',
               }}
             >
-              {msg.role === 'assistant' && (
-                <div
-                  style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: '50%',
-                    background: 'var(--gold-500)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                  }}
-                >
-                  <Sparkles size={16} color="var(--navy-900)" />
-                </div>
-              )}
-              <div
-                style={{
-                  maxWidth: '70%',
-                  padding: '12px 16px',
-                  borderRadius: 'var(--radius-lg)',
-                  background:
-                    msg.role === 'user' ? 'var(--gold-500)' : 'var(--surface-card)',
-                  color: msg.role === 'user' ? 'var(--navy-900)' : 'var(--ink-100)',
-                  fontSize: 15,
-                  lineHeight: 1.6,
-                }}
-              >
-                {msg.content}
+              {m.content}
+            </div>
+          ) : (
+            <div key={m.id} style={{ display: 'flex', gap: 14, alignItems: 'flex-start', animation: 'mnfade .3s var(--ease-out)' }}>
+              <img src="/logo-mark-light.png" alt="" style={{ height: 30, flexShrink: 0, marginTop: 2 }} />
+              <div style={{ fontSize: 15, lineHeight: 1.68, color: 'var(--ink-100)', whiteSpace: 'pre-wrap', paddingTop: 1 }}>
+                {m.content}
               </div>
             </div>
-          ))}
+          )
+        )}
 
-          {/* Plan display */}
-          {currentPlan && (
-            <div
-              style={{
-                background: 'var(--surface-card)',
-                border: '1px solid var(--border-strong)',
-                borderRadius: 'var(--radius-lg)',
-                padding: 20,
-                marginTop: 16,
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  marginBottom: 16,
-                }}
-              >
-                <div
-                  style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: '50%',
-                    background: 'var(--gold-500)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Sparkles size={14} color="var(--navy-900)" />
-                </div>
-                <h3
-                  style={{
-                    fontFamily: 'var(--font-display)',
-                    fontSize: 18,
-                    color: 'var(--ink-050)',
-                    fontWeight: 500,
-                  }}
-                >
-                  Plan: {currentPlan.objective}
-                </h3>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {currentPlan.steps.map((step, i) => (
-                  <div
-                    key={step.id}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      gap: 12,
-                      padding: '12px 14px',
-                      background: 'var(--navy-800)',
-                      borderRadius: 'var(--radius-md)',
-                      border:
-                        step.risk === 'consequential'
-                          ? '1px solid var(--gold-500)'
-                          : '1px solid transparent',
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: 24,
-                        height: 24,
-                        borderRadius: '50%',
-                        background:
-                          step.status === 'complete'
-                            ? 'var(--gold-500)'
-                            : step.status === 'running'
-                            ? 'var(--blue-400)'
-                            : 'var(--navy-700)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0,
-                        fontSize: 12,
-                        color:
-                          step.status === 'complete' || step.status === 'running'
-                            ? 'var(--navy-900)'
-                            : 'var(--ink-400)',
-                      }}
-                    >
-                      {step.status === 'complete' ? (
-                        <CheckCircle2 size={14} />
-                      ) : step.status === 'running' ? (
-                        <Loader2 size={14} className="animate-spin" />
-                      ) : (
-                        i + 1
-                      )}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div
-                        style={{
-                          fontSize: 14,
-                          color: 'var(--ink-100)',
-                          fontWeight: 500,
-                        }}
-                      >
-                        {step.title}
-                      </div>
-                      {step.risk === 'consequential' && (
-                        <div
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 4,
-                            marginTop: 6,
-                            padding: '3px 8px',
-                            background: 'rgba(198, 162, 71, 0.15)',
-                            borderRadius: 'var(--radius-sm)',
-                            fontSize: 11,
-                            color: 'var(--gold-400)',
-                            fontWeight: 500,
-                          }}
-                        >
-                          <AlertCircle size={12} />
-                          Requires approval
-                        </div>
-                      )}
-                    </div>
-                    {step.status === 'awaiting_approval' && (
-                      <button
-                        onClick={() => onApproveStep(step.id)}
-                        style={{
-                          background: 'var(--gold-500)',
-                          color: 'var(--navy-900)',
-                          border: 'none',
-                          borderRadius: 'var(--radius-sm)',
-                          padding: '6px 12px',
-                          fontSize: 12,
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        Approve
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              {currentPlan.status === 'draft' && (
-                <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
-                  <button
-                    onClick={onApprovePlan}
-                    style={{
-                      flex: 1,
-                      background: 'var(--gold-500)',
-                      color: 'var(--navy-900)',
-                      border: 'none',
-                      borderRadius: 'var(--radius-md)',
-                      padding: '12px 0',
-                      fontSize: 14,
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Start Plan
-                  </button>
-                  <button
-                    style={{
-                      padding: '12px 20px',
-                      background: 'transparent',
-                      border: '1px solid var(--border-subtle)',
-                      borderRadius: 'var(--radius-md)',
-                      color: 'var(--ink-300)',
-                      fontSize: 14,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Edit
-                  </button>
-                </div>
-              )}
+        {/* Thinking indicator */}
+        {isLoading && (
+          <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+            <img src="/logo-mark-light.png" alt="" style={{ height: 30, flexShrink: 0 }} />
+            <div style={{ display: 'flex', gap: 6, padding: '8px 0' }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--blue-300)', animation: 'mnblink 1.2s infinite' }} />
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--blue-300)', animation: 'mnblink 1.2s infinite .2s' }} />
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--blue-300)', animation: 'mnblink 1.2s infinite .4s' }} />
             </div>
-          )}
-
-          {isLoading && (
-            <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
-              <div
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: '50%',
-                  background: 'var(--gold-500)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Loader2 size={16} color="var(--navy-900)" className="animate-spin" />
-              </div>
-              <div
-                style={{
-                  padding: '12px 16px',
-                  background: 'var(--surface-card)',
-                  borderRadius: 'var(--radius-lg)',
-                  color: 'var(--ink-400)',
-                  fontSize: 14,
-                }}
-              >
-                Thinking...
-              </div>
-            </div>
-          )}
-          <div ref={messagesEndRef} />
-        </div>
+          </div>
+        )}
       </div>
 
-      {/* Input bar */}
-      <div
-        style={{
-          borderTop: '1px solid var(--border-subtle)',
-          padding: '16px 32px',
-          background: 'var(--surface-bg)',
-        }}
-      >
-        <div
-          style={{
-            maxWidth: 800,
-            margin: '0 auto',
-            display: 'flex',
-            gap: 10,
-            alignItems: 'flex-end',
-            background: 'var(--surface-card)',
-            border: '1px solid var(--border-strong)',
-            borderRadius: 'var(--radius-lg)',
-            padding: 12,
-          }}
-        >
+      {/* Sticky input */}
+      <div style={{ position: 'sticky', bottom: 0, background: 'linear-gradient(transparent, var(--surface-page) 32%)', padding: '14px 32px 22px' }}>
+        <div style={{ maxWidth: 820, margin: '0 auto', display: 'flex', gap: 10, alignItems: 'flex-end', background: 'var(--surface-card)', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-lg)', padding: 10, boxShadow: 'var(--shadow-card)' }}>
           <textarea
-            ref={textareaRef}
+            ref={inputRef}
             rows={1}
-            placeholder="Type a message..."
-            value={input}
-            onChange={handleTextareaChange}
-            onKeyDown={handleKeyDown}
-            style={{
-              flex: 1,
-              background: 'transparent',
-              border: 'none',
-              outline: 'none',
-              resize: 'none',
-              color: 'var(--ink-050)',
-              fontFamily: 'var(--font-sans)',
-              fontSize: 15,
-              lineHeight: 1.5,
-              padding: '8px 10px',
-              maxHeight: 150,
-            }}
+            placeholder="Reply, or ask for something else…"
+            onKeyDown={onKey}
+            style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', resize: 'none', color: 'var(--ink-050)', fontFamily: 'var(--font-sans)', fontSize: 16, lineHeight: 1.5, padding: '8px 10px', maxHeight: 150 }}
           />
           <button
-            onClick={handleSubmit}
-            disabled={!input.trim() || isLoading}
-            style={{
-              background: input.trim() ? 'var(--gold-500)' : 'var(--navy-700)',
-              color: input.trim() ? 'var(--navy-900)' : 'var(--ink-500)',
-              border: 'none',
-              borderRadius: 'var(--radius-md)',
-              padding: '10px 20px',
-              cursor: input.trim() ? 'pointer' : 'default',
-              transition: 'all 0.15s',
-            }}
+            onClick={send}
+            disabled={isLoading}
+            style={{ background: isLoading ? 'var(--navy-600)' : 'var(--gold-500)', color: 'var(--navy-900)', border: 'none', borderRadius: 'var(--radius-md)', padding: '11px 22px', fontSize: 15, fontWeight: 600, cursor: isLoading ? 'default' : 'pointer', flexShrink: 0 }}
           >
-            <Send size={18} />
+            Send
           </button>
+        </div>
+        <div style={{ maxWidth: 820, margin: '8px auto 0', textAlign: 'center', fontSize: 12, color: 'var(--ink-500)' }}>
+          Hermes proposes; you approve. Nothing happens without your say-so.
         </div>
       </div>
     </div>
   );
 }
 
-function ProjectsView({ projects, onCreateProject, onSelectProject }: { 
-  projects: Project[]; 
-  onCreateProject: (name: string, description: string) => void;
-  onSelectProject: (project: Project) => void;
-}) {
-  const [showModal, setShowModal] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [newDesc, setNewDesc] = useState('');
+// ─────────────────────────────────────────────────────────────
+// Products View
+// ─────────────────────────────────────────────────────────────
 
-  const handleCreate = () => {
-    if (newName.trim()) {
-      onCreateProject(newName.trim(), newDesc.trim());
-      setNewName('');
-      setNewDesc('');
-      setShowModal(false);
-    }
-  };
+function ProductsView() {
+  return (
+    <div style={{ maxWidth: 1080, margin: '0 auto', padding: '56px 40px 80px' }}>
+      <div style={{ marginBottom: 8, fontSize: 13, letterSpacing: '.22em', color: 'var(--gold-400)', fontWeight: 500, textTransform: 'uppercase' }}>
+        The House of Monarch
+      </div>
+      <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 500, fontSize: 34, color: 'var(--text-heading)', margin: 0 }}>
+        One founder. A portfolio of products.
+      </h2>
+      <p style={{ fontSize: 18, lineHeight: 1.65, color: 'var(--text-body)', margin: '14px 0 0', maxWidth: 660 }}>
+        Every product below is built and run inside Monarch. Some you can open right now; a few are on the way.
+      </p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(320px,1fr))', gap: 16, marginTop: 36 }}>
+        {PRODUCTS.map((p) => {
+          const s = statusMap(p.status);
+          return (
+            <div
+              key={p.name}
+              style={{
+                background: 'var(--surface-card)', border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-card)',
+                padding: 24, display: 'flex', flexDirection: 'column', gap: 13, minHeight: 172,
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--border-strong)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}
+            >
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                <div style={{ fontSize: 20, fontWeight: 600, color: 'var(--text-heading)' }}>{p.name}</div>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, border: `1px solid ${s.border}`, color: s.color, borderRadius: 999, padding: '4px 12px', fontSize: 12, fontWeight: 500, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: s.dot }} />
+                  {s.label}
+                </span>
+              </div>
+              <p style={{ margin: 0, fontSize: 15, color: 'var(--text-body)', lineHeight: 1.55, flex: 1 }}>{p.tagline}</p>
+              <a
+                href={`https://${p.domain}`}
+                target="_blank"
+                rel="noreferrer"
+                style={{ fontSize: 14, fontWeight: 500, color: 'var(--gold-400)' }}
+              >
+                {p.status === 'live' ? `Visit ${p.domain}` : p.domain} →
+              </a>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Agents View
+// ─────────────────────────────────────────────────────────────
+
+function AgentsView({
+  library,
+  onAcquire,
+  onOpenDetail,
+  onViewChange,
+}: {
+  library: { name: string; kind: string; price: number; tagline: string }[];
+  onAcquire: (kind: string, item: CardItem) => void;
+  onOpenDetail: (item: CardItem & { kind: string }) => void;
+  onViewChange: (v: View) => void;
+}) {
+  const inLib = (name: string) => library.some((x) => x.name === name);
 
   return (
-    <div style={{ padding: '32px 40px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32 }}>
-        <div>
-          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, color: 'var(--ink-050)', fontWeight: 500 }}>
-            Projects
-          </h1>
-          <p style={{ fontSize: 14, color: 'var(--ink-400)', marginTop: 4 }}>
-            {projects.length} active projects
+    <div style={{ maxWidth: 1080, margin: '0 auto', padding: '56px 40px 80px' }}>
+      <div style={{ marginBottom: 8, fontSize: 13, letterSpacing: '.22em', color: 'var(--gold-400)', fontWeight: 500, textTransform: 'uppercase' }}>
+        Agents
+      </div>
+      <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 500, fontSize: 34, color: 'var(--text-heading)', margin: 0 }}>
+        An agent for every domain
+      </h2>
+      <p style={{ fontSize: 18, lineHeight: 1.65, color: 'var(--text-body)', margin: '14px 0 0', maxWidth: 660 }}>
+        Purpose-built helpers from the Monarch house. Or skip the browsing — Hermes, the base agent, does a bit of everything.
+      </p>
+
+      {/* Hermes hero card */}
+      <div style={{
+        background: 'var(--navy-700)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-raised)',
+        padding: 30, margin: '36px 0 16px', display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap',
+      }}>
+        <img src="/logo-mark-light.png" alt="" style={{ height: 62 }} />
+        <div style={{ flex: 1, minWidth: 250 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <span style={{ fontFamily: 'var(--font-display)', fontSize: 25, color: 'var(--text-heading)' }}>Hermes</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, border: '1px solid var(--border-gold)', color: 'var(--gold-400)', borderRadius: 999, padding: '4px 12px', fontSize: 12, fontWeight: 500 }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--gold-500)' }} />
+              Base agent · Free
+            </span>
+          </div>
+          <p style={{ margin: '9px 0 0', fontSize: 15, color: 'var(--blue-200)', lineHeight: 1.55 }}>
+            Tell it what you want done. It plans, you approve, it does the work. Everything else here is Hermes with a specialty.
           </p>
         </div>
         <button
-          onClick={() => setShowModal(true)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            background: 'var(--gold-500)',
-            color: 'var(--navy-900)',
-            border: 'none',
-            borderRadius: 'var(--radius-md)',
-            padding: '10px 18px',
-            fontSize: 14,
-            fontWeight: 600,
-            cursor: 'pointer',
-          }}
+          onClick={() => onViewChange('chat')}
+          style={{ background: 'var(--gold-500)', color: 'var(--navy-900)', border: 'none', borderRadius: 'var(--radius-md)', padding: '14px 28px', fontSize: 16, fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}
         >
-          <Plus size={16} />
-          New Project
+          Start chatting
         </button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
-        {projects.map((project) => (
-          <div
-            key={project.id}
-            onClick={() => onSelectProject(project)}
-            style={{
-              background: 'var(--surface-card)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: 'var(--radius-lg)',
-              padding: 20,
-              cursor: 'pointer',
-              transition: 'all 0.15s',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
-              <h3 style={{ fontSize: 17, color: 'var(--ink-050)', fontWeight: 500 }}>{project.name}</h3>
-              <span
-                style={{
-                  padding: '4px 10px',
-                  background: project.status === 'active' ? 'rgba(96, 165, 250, 0.15)' : 'var(--navy-800)',
-                  color: project.status === 'active' ? 'var(--blue-400)' : 'var(--ink-400)',
-                  borderRadius: 'var(--radius-pill)',
-                  fontSize: 12,
-                  fontWeight: 500,
-                }}
-              >
-                {project.status}
-              </span>
-            </div>
-            <p style={{ fontSize: 14, color: 'var(--ink-400)', marginBottom: 16, lineHeight: 1.5 }}>
-              {project.description}
-            </p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--ink-500)' }}>
-              <Clock size={14} />
-              {formatTimeAgo(project.lastActivity)}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* New Project Modal */}
-      {showModal && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.6)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-          }}
-          onClick={() => setShowModal(false)}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: 'var(--surface-card)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: 'var(--radius-lg)',
-              padding: 28,
-              width: '100%',
-              maxWidth: 440,
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h2 style={{ fontSize: 20, color: 'var(--ink-050)', fontWeight: 500 }}>New Project</h2>
-              <button
-                onClick={() => setShowModal(false)}
-                style={{ background: 'none', border: 'none', color: 'var(--ink-400)', cursor: 'pointer' }}
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: 13, color: 'var(--ink-300)', marginBottom: 6 }}>
-                Project Name
-              </label>
-              <input
-                type="text"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                placeholder="e.g., Website Redesign"
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  background: 'var(--navy-800)',
-                  border: '1px solid var(--border-strong)',
-                  borderRadius: 'var(--radius-md)',
-                  color: 'var(--ink-100)',
-                  fontSize: 14,
-                  outline: 'none',
-                }}
-              />
-            </div>
-            <div style={{ marginBottom: 24 }}>
-              <label style={{ display: 'block', fontSize: 13, color: 'var(--ink-300)', marginBottom: 6 }}>
-                Description
-              </label>
-              <textarea
-                value={newDesc}
-                onChange={(e) => setNewDesc(e.target.value)}
-                placeholder="Brief description of the project..."
-                rows={3}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  background: 'var(--navy-800)',
-                  border: '1px solid var(--border-strong)',
-                  borderRadius: 'var(--radius-md)',
-                  color: 'var(--ink-100)',
-                  fontSize: 14,
-                  outline: 'none',
-                  resize: 'none',
-                }}
-              />
-            </div>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button
-                onClick={() => setShowModal(false)}
-                style={{
-                  flex: 1,
-                  padding: '10px 0',
-                  background: 'transparent',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: 'var(--radius-md)',
-                  color: 'var(--ink-300)',
-                  fontSize: 14,
-                  cursor: 'pointer',
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreate}
-                disabled={!newName.trim()}
-                style={{
-                  flex: 1,
-                  padding: '10px 0',
-                  background: newName.trim() ? 'var(--gold-500)' : 'var(--navy-700)',
-                  border: 'none',
-                  borderRadius: 'var(--radius-md)',
-                  color: newName.trim() ? 'var(--navy-900)' : 'var(--ink-500)',
-                  fontSize: 14,
-                  fontWeight: 600,
-                  cursor: newName.trim() ? 'pointer' : 'default',
-                }}
-              >
-                Create Project
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function AgentsView({ agents }: { agents: Agent[] }) {
-  return (
-    <div style={{ padding: '32px 40px' }}>
-      <div style={{ marginBottom: 32 }}>
-        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, color: 'var(--ink-050)', fontWeight: 500 }}>
-          Agents
-        </h1>
-        <p style={{ fontSize: 14, color: 'var(--ink-400)', marginTop: 4 }}>
-          Specialized helpers that execute your plans
-        </p>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
-        {agents.map((agent) => (
-          <div
-            key={agent.id}
-            style={{
-              background: 'var(--surface-card)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: 'var(--radius-lg)',
-              padding: 20,
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-              <span style={{ fontSize: 28 }}>{agent.icon}</span>
-              <div>
-                <h3 style={{ fontSize: 16, color: 'var(--ink-050)', fontWeight: 500 }}>{agent.name}</h3>
-                <span
-                  style={{
-                    fontSize: 11,
-                    color: agent.status === 'available' ? 'var(--gold-400)' : 'var(--ink-500)',
-                    fontWeight: 500,
-                  }}
+      {/* Agent cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(300px,1fr))', gap: 14 }}>
+        {AGENTS.map((a) => {
+          const s = statusMap(a.status);
+          const owned = inLib(a.name);
+          const priceLabel = a.price > 0 ? `$${a.price}` : 'Free';
+          const actionLabel = owned ? undefined : (a.price > 0 ? `Buy $${a.price}` : 'Add');
+          return (
+            <div
+              key={a.name}
+              style={{
+                background: 'var(--surface-card)', border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-card)',
+                padding: 22, display: 'flex', flexDirection: 'column', gap: 11, minHeight: 176,
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--border-strong)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}
+            >
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+                <div
+                  onClick={() => onOpenDetail({ ...a, kind: 'agent' })}
+                  style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-heading)', cursor: 'pointer' }}
                 >
-                  {agent.status === 'available' ? '● Available' : '○ Busy'}
+                  {a.name}
+                </div>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, border: `1px solid ${s.border}`, color: s.color, borderRadius: 999, padding: '4px 11px', fontSize: 12, fontWeight: 500, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: s.dot }} />
+                  {s.label}
                 </span>
               </div>
+              <p
+                onClick={() => onOpenDetail({ ...a, kind: 'agent' })}
+                style={{ margin: 0, fontSize: 14, color: 'var(--text-body)', lineHeight: 1.55, flex: 1, cursor: 'pointer' }}
+              >
+                {a.tagline}
+              </p>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                <span style={{ fontSize: 14, color: 'var(--ink-500)' }}>{priceLabel}</span>
+                {owned ? (
+                  <span style={{ fontSize: 14, color: 'var(--success)', fontWeight: 500 }}>✓ In library</span>
+                ) : (
+                  <button
+                    onClick={() => onAcquire('agent', a)}
+                    style={{
+                      background: 'transparent', color: 'var(--ink-100)', border: '1px solid var(--border-strong)',
+                      borderRadius: 'var(--radius-md)', padding: '8px 16px', fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--blue-300)'; e.currentTarget.style.color = 'var(--blue-200)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-strong)'; e.currentTarget.style.color = 'var(--ink-100)'; }}
+                  >
+                    {actionLabel}
+                  </button>
+                )}
+              </div>
             </div>
-            <p style={{ fontSize: 14, color: 'var(--ink-400)', marginBottom: 14, lineHeight: 1.5 }}>
-              {agent.description}
-            </p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {agent.capabilities.map((cap) => (
-                <span
-                  key={cap}
-                  style={{
-                    padding: '4px 10px',
-                    background: 'var(--navy-800)',
-                    borderRadius: 'var(--radius-pill)',
-                    fontSize: 12,
-                    color: 'var(--ink-300)',
-                  }}
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Skills View
+// ─────────────────────────────────────────────────────────────
+
+function SkillsView({
+  library,
+  onAcquire,
+  onOpenDetail,
+}: {
+  library: { name: string; kind: string; price: number; tagline: string }[];
+  onAcquire: (kind: string, item: CardItem) => void;
+  onOpenDetail: (item: CardItem & { kind: string }) => void;
+}) {
+  const [catFilter, setCatFilter] = useState('All');
+  const inLib = (name: string) => library.some((x) => x.name === name);
+
+  const filtered = catFilter === 'All' ? SKILLS : SKILLS.filter((s) => s.cat === catFilter);
+
+  return (
+    <div style={{ maxWidth: 1080, margin: '0 auto', padding: '56px 40px 80px' }}>
+      <div style={{ marginBottom: 8, fontSize: 13, letterSpacing: '.22em', color: 'var(--gold-400)', fontWeight: 500, textTransform: 'uppercase' }}>
+        Skills
+      </div>
+      <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 500, fontSize: 34, color: 'var(--text-heading)', margin: 0 }}>
+        Teach your agent new tricks
+      </h2>
+      <p style={{ fontSize: 18, lineHeight: 1.65, color: 'var(--text-body)', margin: '14px 0 0', maxWidth: 660 }}>
+        Skills are ready-made abilities. Download a free one or buy a premium one — your agent knows how to do it instantly. No setup, no jargon.
+      </p>
+
+      {/* Category chips */}
+      <div style={{ display: 'flex', gap: 8, margin: '32px 0 24px', flexWrap: 'wrap' }}>
+        {SKILL_CATEGORIES.map((c) => {
+          const active = c === catFilter;
+          return (
+            <button
+              key={c}
+              onClick={() => setCatFilter(c)}
+              style={{
+                cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 500,
+                padding: '7px 16px', borderRadius: 'var(--radius-pill)',
+                border: active ? '1px solid var(--border-gold)' : '1px solid var(--border-subtle)',
+                background: active ? 'rgba(212,175,55,.08)' : 'transparent',
+                color: active ? 'var(--gold-400)' : 'var(--ink-300)',
+              }}
+            >
+              {c}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Skill cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(300px,1fr))', gap: 14 }}>
+        {filtered.map((s) => {
+          const owned = inLib(s.name);
+          return (
+            <div
+              key={s.name}
+              style={{
+                background: 'var(--surface-card)', border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-card)',
+                padding: 22, display: 'flex', flexDirection: 'column', gap: 10, minHeight: 170,
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--border-strong)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                <div
+                  onClick={() => onOpenDetail({ ...s, kind: 'skill' })}
+                  style={{ fontSize: 17, fontWeight: 600, color: 'var(--text-heading)', cursor: 'pointer' }}
                 >
-                  {cap}
+                  {s.name}
+                </div>
+                <span style={{ fontSize: 12, color: 'var(--ink-500)', whiteSpace: 'nowrap' }}>by {s.by}</span>
+              </div>
+              <p
+                onClick={() => onOpenDetail({ ...s, kind: 'skill' })}
+                style={{ margin: 0, fontSize: 14, color: 'var(--text-body)', lineHeight: 1.55, flex: 1, cursor: 'pointer' }}
+              >
+                {s.desc}
+              </p>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 2 }}>
+                <span style={{ fontSize: 12, letterSpacing: '.05em', color: 'var(--ink-500)' }}>
+                  {s.cat} · {s.price > 0 ? `$${s.price}` : 'Free'}
                 </span>
-              ))}
+                {owned ? (
+                  <span style={{ fontSize: 14, color: 'var(--success)', fontWeight: 500 }}>✓ In library</span>
+                ) : (
+                  <button
+                    onClick={() => onAcquire('skill', s)}
+                    style={{
+                      background: 'transparent', color: 'var(--ink-100)', border: '1px solid var(--border-strong)',
+                      borderRadius: 'var(--radius-md)', padding: '8px 16px', fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--blue-300)'; e.currentTarget.style.color = 'var(--blue-200)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-strong)'; e.currentTarget.style.color = 'var(--ink-100)'; }}
+                  >
+                    {s.price > 0 ? `Buy $${s.price}` : 'Download'}
+                  </button>
+                )}
+              </div>
             </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Library View
+// ─────────────────────────────────────────────────────────────
+
+function LibraryView({
+  library,
+  onViewChange,
+  onToast,
+}: {
+  library: { name: string; kind: string; price: number; tagline: string }[];
+  onViewChange: (v: View) => void;
+  onToast: (msg: string) => void;
+}) {
+  if (library.length === 0) {
+    return (
+      <div style={{ maxWidth: 1080, margin: '0 auto', padding: '56px 40px 80px' }}>
+        <div style={{ marginBottom: 8, fontSize: 13, letterSpacing: '.22em', color: 'var(--gold-400)', fontWeight: 500, textTransform: 'uppercase' }}>
+          Your library
+        </div>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 500, fontSize: 34, color: 'var(--text-heading)', margin: 0 }}>
+          Everything you own
+        </h2>
+        <p style={{ fontSize: 18, lineHeight: 1.65, color: 'var(--text-body)', margin: '14px 0 0', maxWidth: 660 }}>
+          Agents and skills you've added. Open an agent to start, or download a skill to use it anywhere.
+        </p>
+        <div style={{ marginTop: 44, background: 'var(--surface-card)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-lg)', padding: '56px 32px', textAlign: 'center' }}>
+          <img src="/logo-mark-light.png" alt="" style={{ height: 56, opacity: .6 }} />
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: 'var(--ink-100)', margin: '18px 0 6px' }}>
+            Nothing here yet
+          </div>
+          <p style={{ fontSize: 15, color: 'var(--ink-500)', margin: '0 0 22px' }}>
+            Add a skill or an agent and it'll show up here, ready to use.
+          </p>
+          <button
+            onClick={() => onViewChange('skills')}
+            style={{ background: 'var(--gold-500)', color: 'var(--navy-900)', border: 'none', borderRadius: 'var(--radius-md)', padding: '12px 26px', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}
+          >
+            Browse skills
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ maxWidth: 1080, margin: '0 auto', padding: '56px 40px 80px' }}>
+      <div style={{ marginBottom: 8, fontSize: 13, letterSpacing: '.22em', color: 'var(--gold-400)', fontWeight: 500, textTransform: 'uppercase' }}>
+        Your library
+      </div>
+      <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 500, fontSize: 34, color: 'var(--text-heading)', margin: 0 }}>
+        Everything you own
+      </h2>
+      <p style={{ fontSize: 18, lineHeight: 1.65, color: 'var(--text-body)', margin: '14px 0 0', maxWidth: 660 }}>
+        Agents and skills you've added. Open an agent to start, or download a skill to use it anywhere.
+      </p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(300px,1fr))', gap: 14, marginTop: 36 }}>
+        {library.map((item) => (
+          <div
+            key={item.name}
+            style={{
+              background: 'var(--surface-card)', border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-card)',
+              padding: 22, display: 'flex', flexDirection: 'column', gap: 10,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+              <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--text-heading)' }}>{item.name}</div>
+              <span style={{ fontSize: 11, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--gold-400)' }}>
+                {item.kind === 'agent' ? 'Agent' : 'Skill'}
+              </span>
+            </div>
+            <p style={{ margin: 0, fontSize: 14, color: 'var(--text-body)', lineHeight: 1.5, flex: 1 }}>{item.tagline}</p>
+            <button
+              onClick={() => {
+                if (item.kind === 'agent') onViewChange('chat');
+                else onToast(`Downloading "${item.name}"…`);
+              }}
+              style={{
+                background: 'transparent', color: 'var(--ink-100)', border: '1px solid var(--border-strong)',
+                borderRadius: 'var(--radius-md)', padding: '9px 0', fontSize: 14, fontWeight: 600,
+                cursor: 'pointer', width: '100%',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--blue-300)'; e.currentTarget.style.color = 'var(--blue-200)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-strong)'; e.currentTarget.style.color = 'var(--ink-100)'; }}
+            >
+              {item.kind === 'agent' ? 'Open agent' : 'Download'}
+            </button>
           </div>
         ))}
       </div>
@@ -1189,143 +801,105 @@ function AgentsView({ agents }: { agents: Agent[] }) {
   );
 }
 
-function ToolsView({ tools, onToggleTool }: { tools: Tool[]; onToggleTool: (id: string) => void }) {
-  const categories = Array.from(new Set(tools.map((t) => t.category)));
+// ─────────────────────────────────────────────────────────────
+// Detail Modal
+// ─────────────────────────────────────────────────────────────
+
+function DetailModal({
+  detail,
+  library,
+  onClose,
+  onAcquire,
+}: {
+  detail: (CardItem & { kind: string; by?: string }) | null;
+  library: { name: string; kind: string; price: number; tagline: string }[];
+  onClose: () => void;
+  onAcquire: (kind: string, item: CardItem) => void;
+}) {
+  if (!detail) return null;
+
+  const kindLabel = detail.kind === 'agent' ? 'Agent' : 'Skill';
+  const priceLabel = detail.price > 0 ? `$${detail.price}` : 'Free';
+  const priceNote = detail.price > 0 ? 'One-time — yours to keep' : (detail.kind === 'skill' ? 'Free download' : 'Free to add');
+  const owned = library.some((x) => x.name === detail.name);
+  const actionLabel = detail.price > 0 ? `Buy $${detail.price}` : (detail.kind === 'skill' ? 'Download' : 'Add');
 
   return (
-    <div style={{ padding: '32px 40px' }}>
-      <div style={{ marginBottom: 32 }}>
-        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, color: 'var(--ink-050)', fontWeight: 500 }}>
-          Tools
-        </h1>
-        <p style={{ fontSize: 14, color: 'var(--ink-400)', marginTop: 4 }}>
-          Capabilities agents can use to help you
-        </p>
-      </div>
-
-      {categories.map((category) => (
-        <div key={category} style={{ marginBottom: 32 }}>
-          <h2 style={{ fontSize: 14, color: 'var(--ink-400)', fontWeight: 500, marginBottom: 12 }}>{category}</h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {tools
-              .filter((t) => t.category === category)
-              .map((tool) => (
-                <div
-                  key={tool.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 14,
-                    background: 'var(--surface-card)',
-                    border: '1px solid var(--border-subtle)',
-                    borderRadius: 'var(--radius-md)',
-                    padding: '14px 16px',
-                  }}
-                >
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 15, color: 'var(--ink-100)', fontWeight: 500 }}>{tool.name}</span>
-                      {tool.riskLevel === 'consequential' && (
-                        <span
-                          style={{
-                            padding: '2px 8px',
-                            background: 'rgba(198, 162, 71, 0.15)',
-                            borderRadius: 'var(--radius-sm)',
-                            fontSize: 10,
-                            color: 'var(--gold-400)',
-                            fontWeight: 500,
-                          }}
-                        >
-                          APPROVAL REQUIRED
-                        </span>
-                      )}
-                    </div>
-                    <p style={{ fontSize: 13, color: 'var(--ink-400)', marginTop: 2 }}>{tool.description}</p>
-                  </div>
-                  <button
-                    onClick={() => onToggleTool(tool.id)}
-                    style={{
-                      width: 44,
-                      height: 24,
-                      borderRadius: 12,
-                      border: 'none',
-                      background: tool.enabled ? 'var(--gold-500)' : 'var(--navy-700)',
-                      cursor: 'pointer',
-                      position: 'relative',
-                      transition: 'all 0.2s',
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: 18,
-                        height: 18,
-                        borderRadius: '50%',
-                        background: 'white',
-                        position: 'absolute',
-                        top: 3,
-                        left: tool.enabled ? 23 : 3,
-                        transition: 'all 0.2s',
-                      }}
-                    />
-                  </button>
-                </div>
-              ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function LibraryView() {
-  return (
-    <div style={{ padding: '32px 40px' }}>
-      <div style={{ marginBottom: 32 }}>
-        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, color: 'var(--ink-050)', fontWeight: 500 }}>
-          Library
-        </h1>
-        <p style={{ fontSize: 14, color: 'var(--ink-400)', marginTop: 4 }}>
-          Saved plans, templates, and knowledge
-        </p>
-      </div>
-
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(6,13,31,.74)',
+        backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center',
+        justifyContent: 'center', padding: 24, zIndex: 50, animation: 'mnfade .2s ease',
+      }}
+    >
       <div
+        onClick={(e) => e.stopPropagation()}
         style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '80px 20px',
-          background: 'var(--surface-card)',
-          border: '1px dashed var(--border-subtle)',
-          borderRadius: 'var(--radius-lg)',
+          background: 'var(--surface-card)', border: '1px solid var(--border-strong)',
+          borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-raised)',
+          maxWidth: 520, width: '100%', padding: 34, animation: 'mnpop .25s var(--ease-out)',
         }}
       >
-        <Library size={48} color="var(--ink-500)" strokeWidth={1.5} />
-        <p style={{ fontSize: 16, color: 'var(--ink-400)', marginTop: 16, textAlign: 'center' }}>
-          Your library is empty
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <span style={{ fontSize: 11, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--gold-400)' }}>
+            {kindLabel}{detail.by ? ` · by ${detail.by}` : ''}
+          </span>
+          <span onClick={onClose} style={{ cursor: 'pointer', color: 'var(--ink-500)', fontSize: 22, lineHeight: 1 }}>
+            ×
+          </span>
+        </div>
+        <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 500, fontSize: 27, color: 'var(--text-heading)', margin: '12px 0 0' }}>
+          {detail.name}
+        </h3>
+        <p style={{ fontSize: 15, color: 'var(--blue-200)', margin: '8px 0 0', lineHeight: 1.5 }}>
+          {detail.tagline}
         </p>
-        <p style={{ fontSize: 14, color: 'var(--ink-500)', marginTop: 4, textAlign: 'center' }}>
-          Save plans and templates from your conversations to reuse them later.
-        </p>
+        {detail.about && (
+          <p style={{ fontSize: 15, color: 'var(--text-body)', margin: '16px 0 0', lineHeight: 1.65 }}>
+            {detail.about}
+          </p>
+        )}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, marginTop: 26, paddingTop: 20, borderTop: '1px solid var(--border-subtle)' }}>
+          <div>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 24, color: 'var(--text-heading)' }}>{priceLabel}</div>
+            <div style={{ fontSize: 12, color: 'var(--ink-500)' }}>{priceNote}</div>
+          </div>
+          {owned ? (
+            <span style={{ fontSize: 15, color: 'var(--success)', fontWeight: 500 }}>✓ In your library</span>
+          ) : (
+            <button
+              onClick={() => onAcquire(detail.kind, detail)}
+              style={{ background: 'var(--gold-500)', color: 'var(--navy-900)', border: 'none', borderRadius: 'var(--radius-md)', padding: '13px 28px', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}
+            >
+              {actionLabel}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
 // ─────────────────────────────────────────────────────────────
-// Utils
+// Toast
 // ─────────────────────────────────────────────────────────────
 
-function formatTimeAgo(date: Date): string {
-  const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
-  if (seconds < 60) return 'just now';
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
+function Toast({ message }: { message: string | null }) {
+  if (!message) return null;
+  return (
+    <div
+      style={{
+        position: 'fixed', left: '50%', bottom: 28, transform: 'translateX(-50%)',
+        background: 'var(--navy-700)', color: 'var(--ink-050)',
+        border: '1px solid var(--border-gold)', borderRadius: 'var(--radius-pill)',
+        padding: '12px 24px', fontSize: 14, boxShadow: 'var(--shadow-raised)',
+        zIndex: 60, animation: 'mnpop .25s var(--ease-out)',
+      }}
+    >
+      {message}
+    </div>
+  );
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -1336,172 +910,126 @@ export default function Home() {
   const [view, setView] = useState<View>('chat');
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [currentPlan, setCurrentPlan] = useState<Plan | null>(null);
-  const [projects, setProjects] = useState<Project[]>(MOCK_PROJECTS);
-  const [agents] = useState<Agent[]>(MOCK_AGENTS);
-  const [tools, setTools] = useState<Tool[]>(MOCK_TOOLS);
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [library, setLibrary] = useState(loadLib);
+  const [toast, setToast] = useState<string | null>(null);
+  const [detail, setDetail] = useState<(CardItem & { kind: string; by?: string }) | null>(null);
+
+  const toastT = useRef<NodeJS.Timeout>();
+
+  const flash = (msg: string) => {
+    setToast(msg);
+    clearTimeout(toastT.current);
+    toastT.current = setTimeout(() => setToast(null), 2600);
+  };
+
+  const inLib = (name: string) => library.some((x) => x.name === name);
+
+  const handleAcquire = (kind: string, item: CardItem) => {
+    if (inLib(item.name)) { setDetail(null); return; }
+    const tagline = item.tagline || '';
+    const newLib = [...library, { name: item.name, kind, price: item.price || 0, tagline }];
+    setLibrary(newLib);
+    saveLib(newLib);
+    setDetail(null);
+
+    let msg: string;
+    if (item.price > 0) msg = `Purchased — "${item.name}" is in your library.`;
+    else if (kind === 'skill') msg = `Downloaded — "${item.name}" is in your library.`;
+    else msg = `Added "${item.name}" to your library.`;
+    flash(msg);
+  };
 
   const handleSend = async (text: string) => {
-    const userMessage: Message = {
+    const userMsg: Message = {
       id: Date.now().toString(),
       role: 'user',
       content: text,
       timestamp: new Date(),
     };
-    setMessages((prev) => [...prev, userMessage]);
+    setMessages((prev) => [...prev, userMsg]);
     setIsLoading(true);
 
     try {
       const response = await fetch(`${API_BASE}/api/v1/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text }),
+        body: JSON.stringify({ message: text, system: HERMES_PROMPT }),
       });
 
-      if (!response.ok) throw new Error('API error');
-
-      const data = await response.json();
-
-      // Check if response includes a plan
-      if (data.plan) {
-        setCurrentPlan(data.plan);
+      if (response.ok) {
+        const data = await response.json();
+        const replyText = data.response || data.message || "I'm here — tell me a little more and I'll make a plan.";
+        setMessages((prev) => [...prev, {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: typeof replyText === 'string' ? replyText : JSON.stringify(replyText),
+          timestamp: new Date(),
+        }]);
+      } else {
+        throw new Error('API error');
       }
-
-      const assistantMessage: Message = {
+    } catch {
+      // Graceful fallback — Hermes-style plan response
+      const fallback = `Great idea! Here's how I'd tackle it:\n\n1. Start by gathering what we need — your details, preferences, and any deadlines.\n2. I'll lay out the options clearly, with the pros and cons of each.\n3. Once you pick the path, I'll get everything lined up step by step.\n4. Before anything happens in the real world, I'll show you exactly what's about to go out — you give the final yes.\n\nTake a look and tell me what you think. Want to adjust anything?`;
+      setMessages((prev) => [...prev, {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: data.response || data.message || "I've created a plan for you. Review the steps below.",
+        content: fallback,
         timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, assistantMessage]);
-    } catch (err) {
-      // Demo fallback - create a mock plan
-      const mockPlan: Plan = {
-        id: Date.now().toString(),
-        objective: text,
-        status: 'draft',
-        steps: [
-          { id: '1', title: 'Research and gather information', description: '', risk: 'safe', status: 'pending' },
-          { id: '2', title: 'Create initial outline', description: '', risk: 'safe', status: 'pending' },
-          { id: '3', title: 'Draft detailed plan', description: '', risk: 'safe', status: 'pending' },
-          { id: '4', title: 'Review and finalize', description: '', risk: 'consequential', status: 'pending' },
-        ],
-      };
-      setCurrentPlan(mockPlan);
-
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: "I've created a plan to help you. Review the steps below and click 'Start Plan' when ready.",
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, assistantMessage]);
+      }]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleApprovePlan = () => {
-    if (!currentPlan) return;
-    setCurrentPlan((prev) => (prev ? { ...prev, status: 'running' } : null));
-    // Simulate running steps
-    let stepIndex = 0;
-    const interval = setInterval(() => {
-      setCurrentPlan((prev) => {
-        if (!prev) return null;
-        const newSteps = [...prev.steps];
-        if (stepIndex < newSteps.length) {
-          if (newSteps[stepIndex].risk === 'consequential') {
-            newSteps[stepIndex].status = 'awaiting_approval';
-          } else {
-            newSteps[stepIndex].status = 'complete';
-            stepIndex++;
-          }
-        }
-        return { ...prev, steps: newSteps };
-      });
-      if (stepIndex >= (currentPlan?.steps.length || 0)) {
-        clearInterval(interval);
-      }
-    }, 1500);
-  };
-
-  const handleApproveStep = (stepId: string) => {
-    setCurrentPlan((prev) => {
-      if (!prev) return null;
-      return {
-        ...prev,
-        steps: prev.steps.map((s) =>
-          s.id === stepId ? { ...s, status: 'complete' } : s
-        ),
-      };
-    });
-  };
-
-  const handleCreateProject = (name: string, description: string) => {
-    const newProject: Project = {
-      id: Date.now().toString(),
-      name,
-      description: description || `New project: ${name}`,
-      status: 'active',
-      lastActivity: new Date(),
-      plans: [],
-    };
-    setProjects((prev) => [newProject, ...prev]);
-  };
-
-  const handleSelectProject = (project: Project) => {
-    setSelectedProject(project);
-    // Switch to chat with project context
-    setView('chat');
-    setMessages([{
-      id: Date.now().toString(),
-      role: 'system',
-      content: `Now working on project: ${project.name}`,
-      timestamp: new Date(),
-    }]);
-  };
-
-  const handleToggleTool = (toolId: string) => {
-    setTools((prev) =>
-      prev.map((t) => (t.id === toolId ? { ...t, enabled: !t.enabled } : t))
-    );
-  };
-
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
-      <Sidebar activeView={view} onViewChange={setView} projects={projects} />
+      <Sidebar
+        activeView={view}
+        onViewChange={setView}
+        libraryCount={library.length}
+      />
       <main style={{ flex: 1, minWidth: 0 }}>
         {view === 'chat' && (
           <ChatView
             messages={messages}
             onSend={handleSend}
             isLoading={isLoading}
-            currentPlan={currentPlan}
-            onApprovePlan={handleApprovePlan}
-            onApproveStep={handleApproveStep}
           />
         )}
-        {view === 'projects' && (
-          <ProjectsView 
-            projects={projects} 
-            onCreateProject={handleCreateProject}
-            onSelectProject={handleSelectProject}
+        {view === 'products' && <ProductsView />}
+        {view === 'agents' && (
+          <AgentsView
+            library={library}
+            onAcquire={handleAcquire}
+            onOpenDetail={(item) => setDetail(item)}
+            onViewChange={setView}
           />
         )}
-        {view === 'agents' && <AgentsView agents={agents} />}
-        {view === 'tools' && <ToolsView tools={tools} onToggleTool={handleToggleTool} />}
-        {view === 'library' && <LibraryView />}
+        {view === 'skills' && (
+          <SkillsView
+            library={library}
+            onAcquire={handleAcquire}
+            onOpenDetail={(item) => setDetail(item)}
+          />
+        )}
+        {view === 'library' && (
+          <LibraryView
+            library={library}
+            onViewChange={setView}
+            onToast={flash}
+          />
+        )}
       </main>
 
-      <style jsx global>{`
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        .animate-spin { animation: spin 1s linear infinite; }
-      `}</style>
+      <DetailModal
+        detail={detail}
+        library={library}
+        onClose={() => setDetail(null)}
+        onAcquire={handleAcquire}
+      />
+
+      <Toast message={toast} />
     </div>
   );
 }

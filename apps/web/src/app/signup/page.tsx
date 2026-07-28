@@ -33,14 +33,14 @@ export default function SignupPage() {
         return;
       }
 
-      // Store token
-      localStorage.setItem('monarch_token', data.data.token);
+      // Store user info, redirect to login to authenticate
       localStorage.setItem('monarch_user', JSON.stringify(data.data.user));
+      localStorage.setItem('monarch_pending_email', email);
 
       setStep('done');
 
-      // Redirect to onboarding
-      setTimeout(() => router.push('/onboarding'), 800);
+      // Redirect to login for authentication
+      setTimeout(() => router.push(`/login?email=${encodeURIComponent(email)}`), 800);
 
     } catch {
       setError('Network error. Please try again.');

@@ -1,18 +1,28 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 function getApiBase() {
   return ''; // Uses Next.js rewrites
 }
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Pre-fill email from signup redirect
+  useEffect(() => {
+    const pendingEmail = searchParams.get('email') || localStorage.getItem('monarch_pending_email');
+    if (pendingEmail) {
+      setEmail(pendingEmail);
+      localStorage.removeItem('monarch_pending_email');
+    }
+  }, [searchParams]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,7 +43,9 @@ export default function LoginPage() {
         return;
       }
 
-      localStorage.setItem('monarch_token', data.data.token);
+      localStorage.setItem('monarch_token', data.data.tokens.idToken);
+      localStorage.setItem('monarch_access_token', data.data.tokens.accessToken);
+      localStorage.setItem('monarch_refresh_token', data.data.tokens.refreshToken || '');
       localStorage.setItem('monarch_user', JSON.stringify(data.data.user));
 
       const next = data.nextStep === 'dashboard' ? '/dashboard' : '/onboarding';
@@ -103,6 +115,18 @@ export default function LoginPage() {
         </div>
       </form>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ color: 'var(--ink-500)' }}>Loading…</div>
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }
 

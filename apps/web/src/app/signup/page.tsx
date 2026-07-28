@@ -173,6 +173,5 @@ const inputStyle: React.CSSProperties = {
 };
 
 function getApiBase() {
-  if (typeof window === 'undefined') return '';
-  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+  return ''; // Uses Next.js rewrites → proxy to backend
 }

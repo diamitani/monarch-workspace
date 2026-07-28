@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 function getApiBase() {
-  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+  return ''; // Uses Next.js rewrites
 }
 
 export default function LoginPage() {

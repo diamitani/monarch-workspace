@@ -917,7 +917,24 @@ function ChatView({
   );
 }
 
-function ProjectsView({ projects }: { projects: Project[] }) {
+function ProjectsView({ projects, onCreateProject, onSelectProject }: { 
+  projects: Project[]; 
+  onCreateProject: (name: string, description: string) => void;
+  onSelectProject: (project: Project) => void;
+}) {
+  const [showModal, setShowModal] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newDesc, setNewDesc] = useState('');
+
+  const handleCreate = () => {
+    if (newName.trim()) {
+      onCreateProject(newName.trim(), newDesc.trim());
+      setNewName('');
+      setNewDesc('');
+      setShowModal(false);
+    }
+  };
+
   return (
     <div style={{ padding: '32px 40px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32 }}>
@@ -930,6 +947,7 @@ function ProjectsView({ projects }: { projects: Project[] }) {
           </p>
         </div>
         <button
+          onClick={() => setShowModal(true)}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -953,6 +971,7 @@ function ProjectsView({ projects }: { projects: Project[] }) {
         {projects.map((project) => (
           <div
             key={project.id}
+            onClick={() => onSelectProject(project)}
             style={{
               background: 'var(--surface-card)',
               border: '1px solid var(--border-subtle)',
@@ -987,6 +1006,121 @@ function ProjectsView({ projects }: { projects: Project[] }) {
           </div>
         ))}
       </div>
+
+      {/* New Project Modal */}
+      {showModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+          onClick={() => setShowModal(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'var(--surface-card)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-lg)',
+              padding: 28,
+              width: '100%',
+              maxWidth: 440,
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h2 style={{ fontSize: 20, color: 'var(--ink-050)', fontWeight: 500 }}>New Project</h2>
+              <button
+                onClick={() => setShowModal(false)}
+                style={{ background: 'none', border: 'none', color: 'var(--ink-400)', cursor: 'pointer' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', fontSize: 13, color: 'var(--ink-300)', marginBottom: 6 }}>
+                Project Name
+              </label>
+              <input
+                type="text"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="e.g., Website Redesign"
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  background: 'var(--navy-800)',
+                  border: '1px solid var(--border-strong)',
+                  borderRadius: 'var(--radius-md)',
+                  color: 'var(--ink-100)',
+                  fontSize: 14,
+                  outline: 'none',
+                }}
+              />
+            </div>
+            <div style={{ marginBottom: 24 }}>
+              <label style={{ display: 'block', fontSize: 13, color: 'var(--ink-300)', marginBottom: 6 }}>
+                Description
+              </label>
+              <textarea
+                value={newDesc}
+                onChange={(e) => setNewDesc(e.target.value)}
+                placeholder="Brief description of the project..."
+                rows={3}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  background: 'var(--navy-800)',
+                  border: '1px solid var(--border-strong)',
+                  borderRadius: 'var(--radius-md)',
+                  color: 'var(--ink-100)',
+                  fontSize: 14,
+                  outline: 'none',
+                  resize: 'none',
+                }}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setShowModal(false)}
+                style={{
+                  flex: 1,
+                  padding: '10px 0',
+                  background: 'transparent',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-md)',
+                  color: 'var(--ink-300)',
+                  fontSize: 14,
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreate}
+                disabled={!newName.trim()}
+                style={{
+                  flex: 1,
+                  padding: '10px 0',
+                  background: newName.trim() ? 'var(--gold-500)' : 'var(--navy-700)',
+                  border: 'none',
+                  borderRadius: 'var(--radius-md)',
+                  color: newName.trim() ? 'var(--navy-900)' : 'var(--ink-500)',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: newName.trim() ? 'pointer' : 'default',
+                }}
+              >
+                Create Project
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1055,15 +1189,8 @@ function AgentsView({ agents }: { agents: Agent[] }) {
   );
 }
 
-function ToolsView({ tools }: { tools: Tool[] }) {
-  const [localTools, setLocalTools] = useState(tools);
+function ToolsView({ tools, onToggleTool }: { tools: Tool[]; onToggleTool: (id: string) => void }) {
   const categories = Array.from(new Set(tools.map((t) => t.category)));
-
-  const toggleTool = (id: string) => {
-    setLocalTools((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, enabled: !t.enabled } : t))
-    );
-  };
 
   return (
     <div style={{ padding: '32px 40px' }}>
@@ -1080,7 +1207,7 @@ function ToolsView({ tools }: { tools: Tool[] }) {
         <div key={category} style={{ marginBottom: 32 }}>
           <h2 style={{ fontSize: 14, color: 'var(--ink-400)', fontWeight: 500, marginBottom: 12 }}>{category}</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {localTools
+            {tools
               .filter((t) => t.category === category)
               .map((tool) => (
                 <div
@@ -1116,7 +1243,7 @@ function ToolsView({ tools }: { tools: Tool[] }) {
                     <p style={{ fontSize: 13, color: 'var(--ink-400)', marginTop: 2 }}>{tool.description}</p>
                   </div>
                   <button
-                    onClick={() => toggleTool(tool.id)}
+                    onClick={() => onToggleTool(tool.id)}
                     style={{
                       width: 44,
                       height: 24,
@@ -1210,9 +1337,10 @@ export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [currentPlan, setCurrentPlan] = useState<Plan | null>(null);
-  const [projects] = useState<Project[]>(MOCK_PROJECTS);
+  const [projects, setProjects] = useState<Project[]>(MOCK_PROJECTS);
   const [agents] = useState<Agent[]>(MOCK_AGENTS);
-  const [tools] = useState<Tool[]>(MOCK_TOOLS);
+  const [tools, setTools] = useState<Tool[]>(MOCK_TOOLS);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   const handleSend = async (text: string) => {
     const userMessage: Message = {
@@ -1311,6 +1439,36 @@ export default function Home() {
     });
   };
 
+  const handleCreateProject = (name: string, description: string) => {
+    const newProject: Project = {
+      id: Date.now().toString(),
+      name,
+      description: description || `New project: ${name}`,
+      status: 'active',
+      lastActivity: new Date(),
+      plans: [],
+    };
+    setProjects((prev) => [newProject, ...prev]);
+  };
+
+  const handleSelectProject = (project: Project) => {
+    setSelectedProject(project);
+    // Switch to chat with project context
+    setView('chat');
+    setMessages([{
+      id: Date.now().toString(),
+      role: 'system',
+      content: `Now working on project: ${project.name}`,
+      timestamp: new Date(),
+    }]);
+  };
+
+  const handleToggleTool = (toolId: string) => {
+    setTools((prev) =>
+      prev.map((t) => (t.id === toolId ? { ...t, enabled: !t.enabled } : t))
+    );
+  };
+
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
       <Sidebar activeView={view} onViewChange={setView} projects={projects} />
@@ -1325,9 +1483,15 @@ export default function Home() {
             onApproveStep={handleApproveStep}
           />
         )}
-        {view === 'projects' && <ProjectsView projects={projects} />}
+        {view === 'projects' && (
+          <ProjectsView 
+            projects={projects} 
+            onCreateProject={handleCreateProject}
+            onSelectProject={handleSelectProject}
+          />
+        )}
         {view === 'agents' && <AgentsView agents={agents} />}
-        {view === 'tools' && <ToolsView tools={tools} />}
+        {view === 'tools' && <ToolsView tools={tools} onToggleTool={handleToggleTool} />}
         {view === 'library' && <LibraryView />}
       </main>
 

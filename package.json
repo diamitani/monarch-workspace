@@ -1,23 +1,17 @@
 {
-  "name": "monarch-core",
-  "version": "0.1.0",
+  "name": "monarch-workspace",
   "private": true,
-  "description": "Monarch — an agentic AI workspace. Describe a goal, watch agents plan and do the work, approve anything that touches the outside world.",
-  "packageManager": "pnpm@9.12.0",
-  "engines": {
-    "node": ">=20"
-  },
+  "packageManager": "pnpm@10.31.0",
   "scripts": {
-    "build": "pnpm -r --filter './packages/**' build",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "typecheck": "tsc --build --force",
-    "lint": "eslint packages --ext .ts",
-    "clean": "rm -rf packages/*/dist packages/*/*.tsbuildinfo"
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "test": "turbo test",
+    "typecheck": "turbo typecheck"
   },
   "devDependencies": {
-    "@types/node": "^22.7.5",
-    "typescript": "^5.6.3",
-    "vitest": "^2.1.3"
+    "@types/node": "^22.20.1",
+    "turbo": "^2.4.0",
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.9"
   }
 }

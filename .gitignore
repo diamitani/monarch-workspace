@@ -1,10 +1,32 @@
+# Dependencies
 node_modules/
+
+# Build output
 dist/
+.next/
+.turbo/
+
+# Cache
 *.tsbuildinfo
-.env
-.env.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Test coverage
 coverage/
-.terraform/
-*.tfstate
-*.tfstate.backup

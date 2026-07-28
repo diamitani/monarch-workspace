@@ -447,7 +447,7 @@ function CTA() {
   return (
     <section style={{ padding: '100px 24px', textAlign: 'center' }}>
       <div style={{ maxWidth: 600, margin: '0 auto' }}>
-        <Logo size={56} />
+        <img src="/logo-mark-light.png" alt="Monarch" style={{ height: 56 }} />
         <h2
           style={{
             fontFamily: 'var(--font-display)',
@@ -515,17 +515,7 @@ function Header() {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <Logo size={32} />
-          <span
-            style={{
-              fontSize: 14,
-              letterSpacing: '0.25em',
-              color: 'var(--ink-100)',
-              fontWeight: 500,
-            }}
-          >
-            MONARCH
-          </span>
+          <img src="/logo-lockup.png" alt="Monarch" style={{ height: 32 }} />
         </div>
 
         <nav style={{ display: 'flex', alignItems: 'center', gap: 32 }}>
@@ -584,7 +574,7 @@ function Footer() {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <Logo size={24} />
+          <img src="/logo-mark-light.png" alt="Monarch" style={{ height: 24 }} />
           <span style={{ fontSize: 13, color: 'var(--ink-500)' }}>
             © 2026 Monarch. Built with ROSTR Framework.
           </span>

@@ -263,14 +263,20 @@ function ChatView({
   messages,
   onSend,
   isLoading,
+  enabledSkills,
+  onToggleSkill,
 }: {
   messages: Message[];
   onSend: (text: string) => void;
   isLoading: boolean;
+  enabledSkills: string[];
+  onToggleSkill: (skillId: string) => void;
 }) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const prevMsgs = useRef(0);
+  const [skillsOpen, setSkillsOpen] = useState(false);
+  const [skillCatalog, setSkillCatalog] = useState<Array<{id:string;name:string;description:string;category:string}>>([]);
 
   useEffect(() => {
     if (messages.length !== prevMsgs.current && scrollRef.current) {
@@ -278,6 +284,14 @@ function ChatView({
     }
     prevMsgs.current = messages.length;
   }, [messages]);
+
+  // Fetch skill catalog
+  useEffect(() => {
+    fetch(`${API_BASE}/api/v1/skills`)
+      .then((r) => r.json())
+      .then((d) => { if (d.success) setSkillCatalog(d.data); })
+      .catch(() => {});
+  }, []);
 
   const send = () => {
     const text = inputRef.current?.value?.trim();
@@ -295,8 +309,47 @@ function ChatView({
 
   const isEmpty = messages.length === 0;
 
+  // Skills panel — shared between empty and active states
+  const skillsPanel = (
+    <>
+      <button onClick={() => setSkillsOpen(!skillsOpen)} style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 40, width: 44, height: 44, borderRadius: '50%', background: enabledSkills.length > 0 ? 'var(--gold-500)' : 'var(--navy-700)', color: enabledSkills.length > 0 ? 'var(--navy-900)' : 'var(--ink-300)', border: enabledSkills.length > 0 ? '1px solid var(--border-gold)' : '1px solid var(--border-subtle)', cursor: 'pointer', fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-raised)' }}>
+        {enabledSkills.length > 0 ? <span style={{ fontSize: 13, fontWeight: 700 }}>{enabledSkills.length}</span> : <span>⚡</span>}
+      </button>
+      {skillsOpen && (
+        <div style={{ position: 'fixed', bottom: 80, right: 24, zIndex: 40, width: 280, maxHeight: 420, overflowY: 'auto', background: 'var(--surface-card)', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-lg)', padding: 18, boxShadow: 'var(--shadow-raised)', animation: 'mnpop .2s var(--ease-out)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <span style={{ fontSize: 13, letterSpacing: '.1em', color: 'var(--gold-400)', fontWeight: 600, textTransform: 'uppercase' }}>ROSTR Skills</span>
+            <button onClick={() => setSkillsOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--ink-500)', cursor: 'pointer', fontSize: 18, lineHeight: 1 }}>×</button>
+          </div>
+          {skillCatalog.length === 0 ? <div style={{ fontSize: 13, color: 'var(--ink-500)', textAlign: 'center', padding: '20px 0' }}>Loading skills…</div> : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              {skillCatalog.map((skill) => {
+                const isOn = enabledSkills.includes(skill.id);
+                const colors: Record<string, string> = { compile: 'var(--gold-400)', route: 'var(--blue-400)', retrieve: '#8B5CF6', build: '#34D399', verify: '#F59E0B', deploy: '#EF4444' };
+                const c = colors[skill.category] || 'var(--ink-500)';
+                return (
+                  <label key={skill.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '6px 4px', borderRadius: 'var(--radius-sm)', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={isOn} onChange={() => onToggleSkill(skill.id)} style={{ marginTop: 2, accentColor: 'var(--gold-500)', width: 16, height: 16, cursor: 'pointer', flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: isOn ? 'var(--ink-050)' : 'var(--ink-300)' }}>{skill.name}</span>
+                        <span style={{ fontSize: 10, color: c, background: c + '18', borderRadius: 'var(--radius-pill)', padding: '1px 6px', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.05em' }}>{skill.category}</span>
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--ink-500)', marginTop: 2, lineHeight: 1.4 }}>{skill.description}</div>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </>
+  );
+
   if (isEmpty) {
     return (
+      <>
       <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '56px 32px' }}>
         <img src="/logo-mark-light.png" alt="" style={{ height: 78, opacity: .96 }} />
         <div style={{ fontFamily: 'var(--font-display)', fontSize: 15, letterSpacing: '.06em', color: 'var(--gold-400)', marginTop: 22 }}>
@@ -357,11 +410,14 @@ function ChatView({
           ))}
         </div>
       </div>
+      {skillsPanel}
+      </>
     );
   }
 
   // Active chat
   return (
+    <>
     <div ref={scrollRef} style={{ height: '100vh', overflowY: 'auto' }}>
       {/* Messages */}
       <div style={{ maxWidth: 820, margin: '0 auto', padding: '36px 32px 8px', display: 'flex', flexDirection: 'column', gap: 22, minHeight: 'calc(100vh - 104px)' }}>
@@ -423,6 +479,8 @@ function ChatView({
         </div>
       </div>
     </div>
+    {skillsPanel}
+    </>
   );
 }
 
@@ -911,6 +969,7 @@ export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [library, setLibrary] = useState(loadLib);
+  const [enabledSkills, setEnabledSkills] = useState<string[]>([]);
   const [toast, setToast] = useState<string | null>(null);
   const [detail, setDetail] = useState<(CardItem & { kind: string; by?: string }) | null>(null);
 
@@ -953,7 +1012,7 @@ export default function Home() {
       const response = await fetch(`${API_BASE}/api/v1/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, system: HERMES_PROMPT }),
+        body: JSON.stringify({ message: text, system: HERMES_PROMPT, skills: enabledSkills }),
       });
 
       if (response.ok) {
@@ -982,6 +1041,12 @@ export default function Home() {
     }
   };
 
+  const handleToggleSkill = (skillId: string) => {
+    setEnabledSkills((prev) =>
+      prev.includes(skillId) ? prev.filter((id) => id !== skillId) : [...prev, skillId]
+    );
+  };
+
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
       <Sidebar
@@ -995,6 +1060,8 @@ export default function Home() {
             messages={messages}
             onSend={handleSend}
             isLoading={isLoading}
+            enabledSkills={enabledSkills}
+            onToggleSkill={handleToggleSkill}
           />
         )}
         {view === 'products' && <ProductsView />}

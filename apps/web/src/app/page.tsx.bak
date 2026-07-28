@@ -97,7 +97,7 @@ function Hero() {
 
       <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', justifyContent: 'center' }}>
         <Link
-            href="/workspace"
+          href="/"
           style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -464,7 +464,7 @@ function CTA() {
           builds, asks before it acts, and learns as it goes.
         </p>
         <Link
-            href="/workspace"
+          href="/"
           style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -542,7 +542,7 @@ function Header() {
             Pricing
           </a>
           <Link
-              href="/workspace"
+            href="/"
             style={{
               padding: '8px 16px',
               background: 'var(--gold-500)',
